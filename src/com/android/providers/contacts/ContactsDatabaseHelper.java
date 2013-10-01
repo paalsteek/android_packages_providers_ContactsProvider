@@ -77,6 +77,8 @@ import android.text.util.Rfc822Tokenizer;
 import android.util.Log;
 
 import com.android.common.content.SyncStateContentProviderHelper;
+// Engle, 修复多音字
+import com.android.providers.contacts.HanziToPinyin;
 import com.android.providers.contacts.aggregation.util.CommonNicknameCache;
 import com.android.providers.contacts.database.ContactsTableUtil;
 import com.android.providers.contacts.database.DeletedContactsTableUtil;
@@ -5331,13 +5333,24 @@ public class ContactsDatabaseHelper extends SQLiteOpenHelper {
         int phonebookBucketAlternative = 0;
         ContactLocaleUtils localeUtils = ContactLocaleUtils.getInstance();
 
+        // Engle, 修复多音字
         if (sortKeyPrimary != null) {
+            Log.d(TAG, "sortKeyPrimary is " +  sortKeyPrimary);
             phonebookBucketPrimary = localeUtils.getBucketIndex(sortKeyPrimary);
             phonebookLabelPrimary = localeUtils.getBucketLabel(phonebookBucketPrimary);
+            String label = convertPolyphonesForFirstPinyin(sortKeyPrimary);
+            if (phonebookLabelPrimary.compareTo(label) != 0) {
+                phonebookLabelPrimary = label;
+            }
         }
         if (sortKeyAlternative != null) {
+            Log.d(TAG, "sortKeyAlternative is " +  sortKeyAlternative);
             phonebookBucketAlternative = localeUtils.getBucketIndex(sortKeyAlternative);
             phonebookLabelAlternative = localeUtils.getBucketLabel(phonebookBucketAlternative);
+            String label = convertPolyphonesForFirstPinyin(sortKeyAlternative);
+            if (phonebookLabelAlternative.compareTo(label) != 0) {
+                phonebookLabelAlternative = label;
+            }
         }
 
         if (mRawContactDisplayNameUpdate == null) {
@@ -5371,6 +5384,22 @@ public class ContactsDatabaseHelper extends SQLiteOpenHelper {
         mRawContactDisplayNameUpdate.bindLong(11, phonebookBucketAlternative);
         mRawContactDisplayNameUpdate.bindLong(12, rawContactId);
         mRawContactDisplayNameUpdate.execute();
+    }
+
+    // Engle, 修复多音字
+    public String convertPolyphonesForFirstPinyin(String input) {
+        Locale lc = mContext.getResources().getConfiguration().locale;
+        if (!Locale.CHINA.equals(lc))
+            return input;
+
+        HanziToPinyin hzIntsance = HanziToPinyin.getInstance();
+        String label = hzIntsance.getFirstPinYin(input);
+        if (label != null) {
+            label = label.substring(0, 1).toUpperCase(Locale.CHINA);
+        } else {
+            label = input;
+        }
+        return label;
     }
 
     /*
